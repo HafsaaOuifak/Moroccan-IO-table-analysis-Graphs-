@@ -1,0 +1,182 @@
+---
+title: "Morocco's MRIO network 2013"
+subtitle: "Social network analysis project"
+author:
+- Ghanem Abdelghani
+- Ouifak Hafsaa
+output: html_notebook
+---
+
+
+
+
+
+Including the necessary packages
+```{r}
+Sys.setenv(JAVA_HOME='C:\\Program Files\\Java\\jdk-11.0.7') # for 64-bit version
+library(xlsx)
+library(igraph)
+library(plotly)
+library(stringr)
+```
+
+Reading processed data from excel file
+```{r}
+squared_data<-read.xlsx2("..\\data\\processed_morocco_MRIO.xlsx",header=TRUE,sheetName = "IIOS")
+
+squared_data
+```
+
+Converting the data to numeric and save it in an external file
+```{r}
+squared_data[] <- lapply(squared_data, function(x) {
+    if(is.factor(x)) as.numeric(as.character(x)) else x
+})
+sapply(squared_data, class)
+
+squared_data[is.na(squared_data)]=0
+  write.table(squared_data, file = "..\\data\\squared_numeric.csv", sep = ";",row.names = FALSE)
+
+
+```
+
+Creating a sub-graph from the first 6 regions, as it's too large to plot the entire network.
+Also we should note that the visualization of the nework is not going to be that much of a help. since the network is dense ( almost complete ) which makes it nearly impossible to derive any insights from it. 
+```{r}
+sample_size=120
+sample_data=squared_data[1:sample_size,1:sample_size]
+G3=graph_from_adjacency_matrix(as.matrix(sample_data),mode=c("directed"),weighted=TRUE)
+```
+
+Defining the layout and the colors of nodes
+```{r}
+L <- layout.sphere(G3)
+
+
+V(G3)$color <- "blue"
+V(G3)[str_detect(V(G3)$name,"_R1")]$color <- "Sectors of region 1"  
+V(G3)[str_detect(V(G3)$name,"_R2")]$color <- "Sectors of region 2" 
+V(G3)[str_detect(V(G3)$name,"_R3")]$color <- "Sectors of region 3" 
+V(G3)[str_detect(V(G3)$name,"_R4")]$color <- "Sectors of region 4"
+V(G3)[str_detect(V(G3)$name,"_R5")]$color <- "Sectors of region 5"
+V(G3)[str_detect(V(G3)$name,"_R6")]$color <- "Sectors of region 6"
+```
+
+Elemenating multiple links between two nodes for visualization purposes
+```{r}
+G<-simplify(G3, remove.multiple = TRUE, remove.loops = TRUE,edge.attr.comb = igraph_opt("sum"))
+```
+
+Setting up coordinates,atributes, colors and sizes of the nodes
+```{r}
+vs <- V(G)
+es <- as.data.frame(get.edgelist(G))
+
+Nv <- length(vs)
+Ne <- length(es[1]$V1)
+
+Xn <- L[,1]
+Yn <- L[,2]
+G_label<-get.vertex.attribute(G)
+G_color<-V(G)$color
+total<-c()
+node_size<-c()
+ for (i in 1:ncol(squared_data[,1:sample_size])){
+   total[i]<-sum(squared_data[1:nrow(squared_data),i])
+   node_size[i]<-sum(squared_data[1:nrow(squared_data),i])
+ }
+
+node_size <-100*(node_size-min(node_size))/(max(node_size)-min(node_size))
+
+network <- plot_ly(x = ~Xn, y = ~Yn, mode = "markers", text=~paste(paste('Sector: ',G_label$name),'<br />',sep='',paste('Total: ',total,'Million MAD')) ,color = ~G_color,marker = list(size = ~node_size, opacity = 0.9) , hoverinfo = "text")
+```
+
+Setting up the edges
+```{r}
+edge_shapes <- list()
+for(i in 1:Ne) {
+  v0 <- es[i,]$V1
+  v1 <- es[i,]$V2
+  
+  edge_shape = list(
+    type = "line",
+    line = list(color = "#030303", width = 0.02),
+    x0 = Xn[v0],
+    y0 = Yn[v0],
+    x1 = Xn[v1],
+    y1 = Yn[v1]
+  )
+
+  edge_shapes[[i]] <- edge_shape
+}
+```
+
+Setting up the figure's parametrs
+```{r}
+axis <- list(title = "", showgrid = FALSE, showticklabels = FALSE, zeroline = FALSE)
+
+fig <- layout(
+  network,
+  title = 'Sample of the Interregional input-output network of morocco, 2013',
+  shapes = edge_shapes,
+  autosize = F,
+  width = 1000, 
+  height = 1000, 
+  xaxis = axis,
+  yaxis = axis
+)
+```
+
+
+List of Regions
+---
+Symbol  Region
+------  -------
+R1	    Tanger-Tetouan-Al Hoceima
+R2	    Oriental
+R3	    Fès-Meknès
+R4	    Rabat-Salé-Kénitra
+R5	    Béni Mellal-Khénifra
+R6	    Grand Casablanca-Settat
+R7	    Marrakech-Safi
+R8	    Drâa-Tafilalet
+R9	    Souss-Massa
+R10	    Guelmim-Oued Noun
+R11	    Laayoune-Sakia El Hamra
+R12	    Dakhla-Oued Eddahab
+---
+
+
+List of sectors
+---
+Symbol  French Name                                         English Name
+------  -----------                                         -------------
+A00	    Agriculture, forêt et services annexes	            Agriculture, forestry, hunting, related services
+B05	    Pêche, aquaculture	                                Fishing, aquaculture
+C00	    Industrie d’extraction	                            Mining industry
+D01	    Industries alimentaires et tabac	                  Food industry and tobacco
+D02	    Industries du textile et du cuir	                  Textile and leather industry
+D03	    Industrie chimique et parachimique	                Chemical and para-chemical industry
+D04	    Industrie mécanique, métallurgique et électrique	  Mechanical, metallurgical and electrical industry
+D05	    Autres industries manufac. hors raffinage pétrole	  Other manufacturing, excluding petroleum refining
+D06	    Raffinage de pétrole et autres produits d’énergie	  Oil refining and other energy products
+E00	    Electricité et eau	                                Electricity and water
+F45	    Bâtiment et travaux                                 publics	Construction
+G00	    Commerce	                                          Trade
+H55	    Hôtels et restaurants	                              Hotels and restaurants
+I01	    Transports	                                        Transport
+I02	    Postes et télécommunications	                      Post and telecommunications
+J00	    Activités financières et assurances	                Financial activities and insurance
+K00	    Immobilier, location et serv. rendus entreprises	  Real estate, renting and services to enterprises
+L75	    Administration publique et sécurité sociale	        General public administration and social security
+MNO	    Education, santé et action sociale	                Education, health and     social                                              action
+OP0	    Autres services non financiers	                    Other non-financial services
+---
+
+
+```{r}
+fig
+    
+```
+
+

@@ -1,0 +1,257 @@
+---
+title: "Data preprocessing"
+author:
+- Ghanem Abdelghani
+- Ouifak Hafsaa
+subtitle: "Social network analysis project"
+output: html_notebook
+runtime: shiny
+---
+
+
+
+Reading data excel file
+
+```{r}
+library(xlsx)
+library(stringr)
+data = read.xlsx2("..\\data\\morocco_MRIO.xlsx",header=TRUE,sheetName = "IIOS")
+original_data<-data
+```
+
+Here's the initial data
+```{r}
+original_data
+```
+
+
+First of all, you will notice that we cannot create the graph that we need from this data. In fact we need to create a squared matrix with the node the sectors of each region as nodes plus other nodes (See the article for more details).
+
+Here is what these regions and sectors refere to:
+
+List of Regions
+---
+Symbol  Region
+------  -------
+R1	    Tanger-Tetouan-Al Hoceima
+R2	    Oriental
+R3	    Fès-Meknès
+R4	    Rabat-Salé-Kénitra
+R5	    Béni Mellal-Khénifra
+R6	    Grand Casablanca-Settat
+R7	    Marrakech-Safi
+R8	    Drâa-Tafilalet
+R9	    Souss-Massa
+R10	    Guelmim-Oued Noun
+R11	    Laayoune-Sakia El Hamra
+R12	    Dakhla-Oued Eddahab
+---
+
+
+List of sectors
+---
+Symbol  French Name                                         English Name
+------  -----------                                         -------------
+A00	    Agriculture, forêt et services annexes	            Agriculture, forestry, hunting, related services
+B05	    Pêche, aquaculture	                                Fishing, aquaculture
+C00	    Industrie d’extraction	                            Mining industry
+D01	    Industries alimentaires et tabac	                  Food industry and tobacco
+D02	    Industries du textile et du cuir	                  Textile and leather industry
+D03	    Industrie chimique et parachimique	                Chemical and para-chemical industry
+D04	    Industrie mécanique, métallurgique et électrique	  Mechanical, metallurgical and electrical industry
+D05	    Autres industries manufac. hors raffinage pétrole	  Other manufacturing, excluding petroleum refining
+D06	    Raffinage de pétrole et autres produits d’énergie	  Oil refining and other energy products
+E00	    Electricité et eau	                                Electricity and water
+F45	    Bâtiment et travaux                                 publics	Construction
+G00	    Commerce	                                          Trade
+H55	    Hôtels et restaurants	                              Hotels and restaurants
+I01	    Transports	                                        Transport
+I02	    Postes et télécommunications	                      Post and telecommunications
+J00	    Activités financières et assurances	                Financial activities and insurance
+K00	    Immobilier, location et serv. rendus entreprises	  Real estate, renting and services to enterprises
+L75	    Administration publique et sécurité sociale	        General public administration and social security
+MNO	    Education, santé et action sociale	                Education, health and     social                                              action
+OP0	    Autres services non financiers	                    Other non-financial services
+---
+
+
+we will start by adding the symbols of the regions to the nodes
+```{r}
+
+data<-original_data
+for (i in 1:12){
+  start=(i-1)*20+1
+  end=i*20
+  for(j in start:end){
+    names(data)[j+1] <- paste(str_remove(names(data)[j+1],"\\.[0-9]*$"),paste("_R",i,sep=""),sep="") 
+  }
+}
+data
+
+```
+
+Naming investement demand as INV_D
+
+```{r}
+
+  start_inv_d=12*20+2
+  end_inv_d=start_inv_d+11
+  i=1
+  for(j in start_inv_d:end_inv_d){
+    names(data)[j] <- paste("INV_D_R",i,sep="")
+    i=i+1
+  }
+```
+
+Naming Household demand as HO_D
+
+```{r}
+
+  start_ho_d=end_inv_d+1
+  end_ho_d=start_ho_d+11
+  i=1
+  for(j in start_ho_d:end_ho_d){
+    names(data)[j] <- paste("HO_D_R",i,sep="")
+    i=i+1
+  }
+```
+
+
+Naming Governoment demand as GOV_D
+```{r}
+
+  start_gov_d=end_ho_d+1
+  end_gov_d=start_gov_d+11
+  i=1
+  for(j in start_gov_d:end_gov_d){
+    names(data)[j] <- paste("GOV_D_R",i,sep="")
+    i=i+1
+  }
+  
+```
+
+
+Naming Foreign exports as FO_EXP
+```{r}
+end_for_exp<-ncol(data)
+names(data)[end_for_exp] <- "FO_EXP"
+
+```
+
+
+```{r}
+data
+```
+
+
+
+The purpose of this section is to make the data frame squared for graph construction <br/>
+
+Adding the values added
+
+```{r}
+end=12*20+1
+
+squared_data=data.frame(data[,2:end])
+squared_data
+```
+
+We will create theses duplicates so that if we want to re-run the cell code we'll not have to run the entire code from the bigenning (note that the data changes)
+```{r}
+squared_data_dup=squared_data
+
+```
+
+Here we want to make the matrix squared by adding zeros
+
+Adding foreign investement 
+```{r}
+squared_data=squared_data_dup
+start=ncol(squared_data)+1
+end=start+19
+for (i in start:end){
+  squared_data=cbind(squared_data,colname=numeric(nrow(squared_data)))
+  names(squared_data)[ncol(squared_data)] <- paste(data[i,1],"_FOR",sep="")
+  
+}
+
+squared_data_dup2=squared_data
+
+```
+
+Naming and adding taxes and subsidies, labor payments, capital payments, other costs, value added (resp.) as TAX_SUB, LA_PAY, CA_PAY, OTH_COT, VA_ADD
+
+```{r}
+squared_data=squared_data_dup2
+for (i in 1:5){
+  squared_data=cbind(squared_data,colname=numeric(nrow(squared_data)))
+  switch(i,
+         names(squared_data)[ncol(squared_data)] <- "TAX_SUB",
+         names(squared_data)[ncol(squared_data)] <- "LA_PAY",
+         names(squared_data)[ncol(squared_data)] <- "CA_PAY",
+         names(squared_data)[ncol(squared_data)] <- "OTH_COT",
+         names(squared_data)[ncol(squared_data)] <- "VA_ADD",
+         )
+}
+
+```
+
+```{r}
+squared_data
+squared_data_dup3=squared_data
+```
+
+```{r}
+squared_data=squared_data_dup3
+squared_data=cbind(squared_data,data[,start_inv_d:end_for_exp])
+```
+
+
+```{r}
+squared_data
+```
+
+```{r}
+n=302-265
+m_zeros=matrix(data=0,nrow=n,ncol = ncol(squared_data))
+squared_data=data.frame(rbind(as.matrix(squared_data), as.matrix(m_zeros)))
+squared_data
+```
+
+Now we will fill the matrix with the actual values of the added columns.
+
+First we will need to convert the data to numeric in order to avoid any casting/levels problems.
+
+Converting data to numeric
+```{r}
+squared_data[] <- lapply(squared_data, function(x) {
+    if(is.factor(x)) as.numeric(as.character(x)) else x
+})
+sapply(squared_data, class)
+
+squared_data[is.na(squared_data)]=0
+
+squared_data_dup4<-squared_data
+```
+
+Filling the matrix with actual values of the added columns
+```{r}
+squared_data<-squared_data_dup4
+start=12*20+1
+end=start+24
+
+squared_data[1:ncol(data)-1,start:end]<-as.numeric(t(data[start:end,2:ncol(data)]))
+
+```
+
+```{r}
+write.xlsx2(squared_data,"..\\data\\processed_morocco_MRIO.xlsx",sheetName = "IIOS",row.names = FALSE)
+```
+
+
+
+
+
+
+
+

@@ -1,0 +1,355 @@
+---
+title: "R Notebook"
+output: html_notebook
+author:
+- Ghanem Abdelghani
+- Ouifak Hafsaa
+subtitle: "Social network analysis project"
+output: html_notebook
+---
+
+Needed packages :
+
+```{r}
+Sys.setenv(JAVA_HOME='C:\\Program Files\\Java\\jdk-11.0.7') # for 64-bit version
+library(xlsx)
+library(igraph)
+library(plotly)
+library(stringr)
+library (haven)
+library (ggplot2)
+```
+
+Reading processed data from excel file
+```{r}
+squared_data<-read.csv2(file="..\\data\\squared_numeric.csv",header=TRUE)
+squared_data
+```
+
+
+
+Creating a sub-graph from the first region.
+
+```{r}
+sample_size=240
+sample_data=squared_data[1:sample_size,1:sample_size]
+G=graph_from_adjacency_matrix(as.matrix(sample_data),mode=c("directed"),weighted=TRUE)
+```
+
+Elimination of non connected components
+```{r}
+comp = components(G, mode="strong")
+comp$no
+comp$csize
+BigComp = which.max(comp$csize)
+Main_graph = induced_subgraph(G, 
+    which(comp$membership == BigComp))
+G2=Main_graph
+```
+
+Define layout and colors
+
+```{r}
+L <- layout.sphere(G)
+V(G)$color <- "blue"
+V(G)[str_detect(V(G)$name,"_R1")]$color <- "Sectors of region 1"  
+V(G)[str_detect(V(G)$name,"_R2")]$color <- "Sectors of region 2" 
+V(G)[str_detect(V(G)$name,"_R3")]$color <- "Sectors of region 3" 
+V(G)[str_detect(V(G)$name,"_R4")]$color <- "Sectors of region 4"
+V(G)[str_detect(V(G)$name,"_R5")]$color <- "Sectors of region 5"
+V(G)[str_detect(V(G)$name,"_R6")]$color <- "Sectors of region 6"
+V(G)[str_detect(V(G)$name,"_R7")]$color <- "Sectors of region 7"
+V(G)[str_detect(V(G)$name,"_R8")]$color <- "Sectors of region 8"
+V(G)[str_detect(V(G)$name,"_R9")]$color <- "Sectors of region 9"
+V(G)[str_detect(V(G)$name,"_R10")]$color <- "Sectors of region 10"
+V(G)[str_detect(V(G)$name,"_R11")]$color <- "Sectors of region 11"
+V(G)[str_detect(V(G)$name,"_R12")]$color <- "Sectors of region 12"
+G_label<-get.vertex.attribute(G)
+G_color<-V(G)$color
+```
+
+```{r}
+L2 <- layout.sphere(G2)
+V(G2)$color <- "blue"
+V(G2)[str_detect(V(G2)$name,"_R1")]$color <- "Sectors of region 1"  
+V(G2)[str_detect(V(G2)$name,"_R2")]$color <- "Sectors of region 2" 
+V(G2)[str_detect(V(G2)$name,"_R3")]$color <- "Sectors of region 3" 
+V(G2)[str_detect(V(G2)$name,"_R4")]$color <- "Sectors of region 4"
+V(G2)[str_detect(V(G2)$name,"_R5")]$color <- "Sectors of region 5"
+V(G2)[str_detect(V(G2)$name,"_R6")]$color <- "Sectors of region 6"
+V(G2)[str_detect(V(G2)$name,"_R7")]$color <- "Sectors of region 7"
+V(G2)[str_detect(V(G2)$name,"_R8")]$color <- "Sectors of region 8"
+V(G2)[str_detect(V(G2)$name,"_R9")]$color <- "Sectors of region 9"
+V(G2)[str_detect(V(G2)$name,"_R10")]$color <- "Sectors of region 10"
+V(G2)[str_detect(V(G2)$name,"_R11")]$color <- "Sectors of region 11"
+V(G2)[str_detect(V(G2)$name,"_R12")]$color <- "Sectors of region 12"
+G2_label<-get.vertex.attribute(G2)
+G2_color<-V(G2)$color
+```
+
+
+Density of the network
+
+```{r}
+    #Density
+    graph.density(G,loop=TRUE)
+    #Average Path Length
+    mean_distance(G)
+```
+
+```{r}
+#Clustering coefficient
+transitivity(G2, type="weighted", weights= E(G2)$weight)
+```
+Centrality measures :
+
+InStrength:
+
+```{r}
+    Instrength=strength(G, vids = V(G), mode = "in",loops = TRUE, weights = E(G)$weight)
+    Instrength=as.data.frame(Instrength)
+    #G_color=V(G)$color
+    #qplot(DegreeDis, data=DegreeDis2, geom="histogram", binwidth=.01)
+    fig_instr <- plot_ly(
+      x = c(1:length(V(G)$name)),
+      y = Instrength$Instrength,
+      text=~paste(paste('Sector: ',G_label$name)),
+      #name = "InDegree distribution of industries of ",
+      #type = "bar",
+      color = ~G_color
+    )
+   
+    fig_instr <- fig_instr %>% layout(
+         xaxis = list(title = ""),
+         yaxis = list(title = ""))
+    fig_instr <- fig_instr%>%add_markers(showlegend=F)
+    fig_instr
+```
+
+OutStrength:
+
+```{r}
+    Outstrength=strength(G, vids = V(G), mode = "out",loops = TRUE, weights = E(G)$weight)
+    Outstrength=as.data.frame(Outstrength)
+    #qplot(DegreeDis, data=DegreeDis2, geom="histogram", binwidth=.01)
+    fig_outstr <- plot_ly(
+      x = c(1:length(V(G)$name)),
+      y = Outstrength$Outstrength,
+      text=~paste(paste('Sector: ',G_label$name)),
+      #name = "In/Out strength of industries of region 1",
+      #type = "bar",
+      color = ~G_color
+    )
+    fig_outstr <- fig_outstr %>% layout(
+         xaxis = list(title = ""),
+         yaxis = list(title = "strength"))
+    fig_outstr <- fig_outstr%>%add_markers(showlegend=F)
+    fig_outstr
+    fig_str=subplot(fig_instr,fig_outstr)
+    fig_str
+```
+
+InCloseness:
+
+```{r}
+#Closeness Centrality
+    #Closeness Centrality
+    clos=closeness(G2, mode = "in",weights = E(G2)$weight)
+    inclos=as.data.frame(clos)
+    fig_inclos <- plot_ly(
+      x = c(1:length(V(G2)$name)),
+      y = inclos$clos,
+      text=~paste(paste('Sector: ',G2_label$name)),
+      color = ~G2_color
+    )
+    fig_inclos <- fig_inclos %>% layout(#title = "InCloseness of industries of Morocco",
+         xaxis = list(title = ""),
+         yaxis = list(title = "InCloseness"))
+    fig_inclos <- fig_inclos%>%add_markers(showlegend=F)
+
+    fig_inclos
+```
+
+OutCloseness: 
+
+```{r}
+#Closeness Centrality
+    #Closeness Centrality
+    clos=closeness(G2, mode = "out",weights = E(G2)$weight)
+    outclos=as.data.frame(clos)
+    fig_outclos <- plot_ly(
+      x = c(1:length(V(G2)$name)),
+      y = outclos$clos,
+      text=~paste(paste('Sector: ',G2_label$name)),
+      color = ~G2_color
+    )
+    fig_outclos <- fig_outclos %>% layout(#title = "OutCloseness of industries of Morocco",
+         xaxis = list(title = ""),
+         yaxis = list(title = "OutCloseness"))
+    fig_outclos <- fig_outclos%>%add_markers(showlegend=F)
+
+    fig_outclos
+```
+
+Subplot of the two figures of closeness:
+
+```{r}
+fig_clos <- subplot(fig_inclos, fig_outclos) 
+fig_clos <- fig_clos %>% layout(title = "In/out Closeness of industries of Morocco",
+         xaxis = list(title = ""),
+         yaxis = list(title = "Closeness"))
+fig_clos
+```
+
+AllCloseness:
+
+
+```{r}
+    clos=closeness(G2, mode = "all")
+    allclos= as.data.frame(clos)
+    fig22 <- plot_ly(
+      x = c(1:length(V(G2)$name)),
+      y =allclos$clos,
+      text=~paste(paste('Sector: ',G2_label$name)),
+      color = ~G2_color
+    )
+    fig22 <- fig22 %>% layout(title = "AllCloseness of industries of Morocco",
+         xaxis = list(title = ""),
+         yaxis = list(title = "MAD"))
+    
+    fig22
+```
+
+Betweeness:
+
+
+```{r}
+#G_label
+#Betweeness Centrality
+    Betweeness <- betweenness(G,weights=E(G)$weight, directed=TRUE,nobigint=TRUE)
+    Betweeness <- as.data.frame(Betweeness)
+    fig_bet=plot_ly( x = c(1:length(V(G)$name)), y = Betweeness$Betweeness,text=~paste(paste('Sector: ',G_label$name)),color = ~G_color)
+    fig_bet <- fig_bet %>% layout(#title = "Betweeness of industries of Morocco",
+         xaxis = list(title = ""),
+         yaxis = list(title = "Betweeness"),
+         width = 800, 
+          height = 500)
+        fig_bet <- fig_bet%>%add_markers(showlegend=F)
+    fig_bet
+```
+
+EigenCentrality:                                                                 
+                                                                 
+```{r}
+EigenCentrality <- eigen_centrality(G, directed = TRUE, weights = E(G)$weight)
+   EigenCentrality <- as.data.frame(EigenCentrality)
+   fig_eig <- plot_ly(
+        x = c(1:length(V(G)$name)),
+        y = EigenCentrality$vector,
+        text=~paste(paste('Sector: ',G_label$name)),
+        #type = "bar",
+        color = ~G_color
+       )
+      fig_eig <- fig_eig %>% layout(title = "EigenCentrality of industries of Morocco",
+           xaxis = list(title = ""),
+           yaxis = list(title = "Eigenvector Centrality"),
+           width = 800, 
+           height = 500)
+      #fig_eig <- fig_eig%>%add_markers(showlegend=F)
+      fig_eig
+```
+
+PageRank:   
+                                                                    
+```{r}
+PageRank <- page_rank(G, directed = TRUE, weights = E(G)$weight)
+#PageRank = as.data.frame(PageRank)
+   fig_pr <- plot_ly(
+        x = c(1:length(V(G)$name)),
+        y = PageRank$vector,
+        text=~paste(paste('Sector: ',G_label$name)),
+        #type = "bar",
+        color = ~G_color
+       )
+      fig_pr <- fig_pr %>% layout(title = "Page rank measure of industries of Morocco",
+           xaxis = list(title = ""),
+           yaxis = list(title = "Page Rank Centrality"),
+           width = 800, 
+           height = 500)
+      fig_pr
+```
+ 
+ Subplot of all figures:  
+   
+```{r}
+# subplot
+fig <- subplot(fig_instr,fig_outstr,fig_inclos,fig_outclos, fig_bet, fig_eig,fig_pr,nrows = 4) 
+fig  %>% layout(title="Centrality measures of Moroccan sectors network",
+  width = 760, 
+  height = 650,
+  annotations = list(
+    list(x = 0.2 , y = 0.95, text = "In Strength", showarrow = F, xref='paper', yref='paper'),
+    list(x = 0.8 , y = 0.95, text = "Out Strength", showarrow = F, xref='paper', yref='paper'),
+    list(x = 0.2 , y = 0.7, text = "In closeness", showarrow = F, xref='paper', yref='paper'),
+ list(x = 0.8 , y = 0.7, text = "Out closeness", showarrow = F, xref='paper', yref='paper'),
+  list(x = 0.2 , y = 0.45, text = "Betweeness", showarrow = F, xref='paper', yref='paper'),
+ list(x = 0.8 , y = 0.45, text = "EigenVector", showarrow = F, xref='paper', yref='paper'),
+ list(x = 0.2 , y = 0.16, text = "Page Rank", showarrow = F, xref='paper', yref='paper'))
+)
+```
+ 
+ Reading the output multiplier data and convert it to numeric
+ 
+```{r}
+data2<-read.xlsx2("..\\data\\output_mul.xlsx",header=FALSE,sheetName = "B_2")
+data2=as.data.frame(data2)
+data2[] <- lapply(data2, function(x) {
+    if(is.factor(x)) as.numeric(as.character(x)) else x
+})
+sapply(data2, class)
+data2[is.na(data2)]=0
+data2=as.vector(t(data2))
+```
+ 
+ 
+ Testing the correlations between eigen vector centrality and output multiplier                                                                                            
+```{r}
+vec1=EigenCentrality$vector
+vec2=PageRank$vector
+vec3=Betweeness$Betweeness
+vec4=Instrength$Instrength
+cor.test(data2,vec1 ,method="spearman")
+cor(data2,vec4)
+cor(data2,vec4)
+cor(data2,vec4)
+cor(data2,vec4)
+```
+
+Calculating closeness for even non connected components
+```{r}
+clos=closeness(G, mode = "all",weights = E(G)$weight)
+allclos= as.data.frame(clos)
+clos=closeness(G, mode = "in",weights = E(G)$weight)
+inclos= as.data.frame(clos)
+clos=closeness(G, mode = "out",weights = E(G)$weight)
+outclos= as.data.frame(clos)
+```
+
+Calculating the correlations betwen the different centrality measures and the output multiplier :
+
+```{r}
+EigenVector=EigenCentrality$vector
+Betweeness=Betweeness$Betweeness
+In_Closeness=inclos$clos
+Out_Closeness=outclos$clos
+All_Closeness=allclos$clos
+In_Strength=Instrength$Instrength
+Out_Strength=Outstrength$Outstrength
+PageRank=PageRank$vector
+output=data2
+dataf=data.frame(In_Strength,Out_Strength,In_Closeness,Out_Closeness,Betweeness,EigenVector,PageRank,output)
+corm=cor(dataf)
+library(corrplot)
+corrplot(corm, method="color")
+```
+                                                                                             
